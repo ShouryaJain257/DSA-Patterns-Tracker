@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSA Patterns — Shourya</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Pattern-wise · Self-paced · Revision-first</p>
+    <h1>DSA Patterns Tracker</h1>
+    <p class="sub">Built for consistency: streaks, a revision queue, and an OA mode that surfaces Medium/Hard problems when you need interview-pressure practice.</p>
+  </header>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab-btn active" id="tab-phase" data-tab="phase">Phase Roadmap <span class="tab-count">538</span></button>
+    <button class="tab-btn" id="tab-pattern" data-tab="pattern">Pattern Sheet <span class="tab-count">513</span></button>
+  </div>
+
+  <!-- STREAK + TODAY -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <span class="stat-icon">🔥</span>
+      <div>
+        <p class="stat-num" id="streak-current">0</p>
+        <p class="stat-label">day streak</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon">🏆</span>
+      <div>
+        <p class="stat-num" id="streak-longest">0</p>
+        <p class="stat-label">longest streak</p>
+      </div>
+    </div>
+    <div class="stat-card stat-card--due" id="due-card">
+      <span class="stat-icon">⏰</span>
+      <div>
+        <p class="stat-num" id="due-count">0</p>
+        <p class="stat-label">due for revision</p>
+      </div>
+    </div>
+    <div class="stat-card">
+      <span class="stat-icon">✅</span>
+      <div>
+        <p class="stat-num" id="solved-count">0 / 538</p>
+        <p class="stat-label">total progress</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERALL BAR -->
+  <div class="overall">
+    <div class="overall-inner">
+      <span class="overall-label">OVERALL</span>
+      <div class="bar-track"><div class="bar-fill" id="overall-bar"></div></div>
+      <span class="overall-pct" id="overall-pct">0%</span>
+    </div>
+  </div>
+
+  <!-- CONTROLS -->
+  <div class="controls">
+    <input type="text" id="search" class="search-input" placeholder="Search a problem name...">
+    <div class="control-buttons">
+      <button class="toggle-btn" id="oa-mode-btn" title="Show only Medium/Hard (3★+) problems">OA Mode</button>
+      <button class="toggle-btn" id="due-filter-btn" title="Show only problems due for revision">Due Only</button>
+      <button class="toggle-btn" id="expand-all-btn">Expand All</button>
+    </div>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend">
+    <span class="legend-item"><span class="dot dot-new"></span> New</span>
+    <span class="legend-item"><span class="dot dot-solved"></span> Solved</span>
+    <span class="legend-item"><span class="dot dot-revising"></span> Revising</span>
+    <span class="legend-item"><span class="dot dot-mastered"></span> Mastered</span>
+    <span class="legend-item legend-hint">click a problem to cycle its state</span>
+  </div>
+
+  <div id="phases"></div>
+
+  <footer>
+    <strong>Phase Roadmap:</strong> the master DSA sheet (502 problems, 9 phases) plus a CP-oriented bonus set (Difference Arrays, Multi-Source BFS, 0/1 BFS, Bitmask DP, String Matching, Segment/Fenwick Trees).
+    <strong>Pattern Sheet:</strong> 513 problems across 30 Grokking-style patterns with verified LeetCode links.
+    Progress and streaks are stored locally in your browser, separately for each tab.
+  </footer>
+</div>
+
+<script src="data.js"></script>
+<script src="patterns-data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
