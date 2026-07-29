@@ -3,98 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DSA Patterns — Shourya</title>
+<title>DSA Patterns Tracker - Shourya</title>
+<script>
+  (function () {
+    var saved = localStorage.getItem("dsa-theme");
+    var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", theme);
+  })();
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="wrap">
-
-  <header>
-    <p class="eyebrow">Pattern-wise · Self-paced · Revision-first</p>
-    <h1>DSA Patterns Tracker</h1>
-    <p class="sub">Built for consistency: streaks, a revision queue, and an OA mode that surfaces Medium/Hard problems when you need interview-pressure practice.</p>
-  </header>
-
-  <!-- TABS -->
-  <div class="tabs">
-    <button class="tab-btn active" id="tab-phase" data-tab="phase">Phase Roadmap <span class="tab-count">538</span></button>
-    <button class="tab-btn" id="tab-pattern" data-tab="pattern">Pattern Sheet <span class="tab-count">513</span></button>
-  </div>
-
-  <!-- STREAK + TODAY -->
-  <div class="stat-row">
-    <div class="stat-card">
-      <span class="stat-icon">🔥</span>
+<div class="app-shell">
+  <aside class="sidebar" aria-label="Progress overview">
+    <div class="brand-lockup">
+      <span class="brand-mark">DSA</span>
       <div>
-        <p class="stat-num" id="streak-current">0</p>
-        <p class="stat-label">day streak</p>
+        <p class="eyebrow">Patterns Tracker</p>
+        <h1>Focused Prep Board</h1>
       </div>
     </div>
-    <div class="stat-card">
-      <span class="stat-icon">🏆</span>
+
+    <p class="sub">Phase-wise roadmap and pattern practice, tuned for deep work, revision, and fast navigation.</p>
+
+    <div class="progress-panel">
+      <div class="overall-ring" id="overall-ring">
+        <span id="overall-pct">0%</span>
+      </div>
       <div>
-        <p class="stat-num" id="streak-longest">0</p>
-        <p class="stat-label">longest streak</p>
+        <p class="panel-label">Overall progress</p>
+        <p class="panel-value" id="solved-count">0 / 0</p>
       </div>
     </div>
-    <div class="stat-card stat-card--due" id="due-card">
-      <span class="stat-icon">⏰</span>
-      <div>
-        <p class="stat-num" id="due-count">0</p>
-        <p class="stat-label">due for revision</p>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <span class="stat-num" id="streak-current">0</span>
+        <span class="stat-label">Current streak</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="streak-longest">0</span>
+        <span class="stat-label">Best streak</span>
+      </div>
+      <div class="stat-card" id="due-card">
+        <span class="stat-num" id="due-count">0</span>
+        <span class="stat-label">Due now</span>
+      </div>
+      <div class="stat-card">
+        <span class="stat-num" id="visible-count">0</span>
+        <span class="stat-label">Showing</span>
       </div>
     </div>
-    <div class="stat-card">
-      <span class="stat-icon">✅</span>
-      <div>
-        <p class="stat-num" id="solved-count">0 / 538</p>
-        <p class="stat-label">total progress</p>
+
+    <div class="legend">
+      <span><i class="dot dot-new"></i>New</span>
+      <span><i class="dot dot-solved"></i>Solved</span>
+      <span><i class="dot dot-revising"></i>Revising</span>
+      <span><i class="dot dot-mastered"></i>Mastered</span>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <header class="topbar">
+      <div class="tabs" role="tablist" aria-label="Tracker views">
+        <button class="tab-btn active" id="tab-phase" data-tab="phase" type="button">Phase Roadmap <span class="tab-count">0</span></button>
+        <button class="tab-btn" id="tab-pattern" data-tab="pattern" type="button">Pattern Sheet <span class="tab-count">0</span></button>
       </div>
-    </div>
-  </div>
+      <button class="ghost-btn" id="expand-all-btn" type="button">Expand all</button>
+      <button class="ghost-btn" id="theme-toggle-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false">
+        <span id="theme-toggle-icon" aria-hidden="true">&#9789;</span>
+        <span id="theme-toggle-label">Dark</span>
+      </button>
+    </header>
 
-  <!-- OVERALL BAR -->
-  <div class="overall">
-    <div class="overall-inner">
-      <span class="overall-label">OVERALL</span>
-      <div class="bar-track"><div class="bar-fill" id="overall-bar"></div></div>
-      <span class="overall-pct" id="overall-pct">0%</span>
-    </div>
-  </div>
+    <section class="focus-strip" aria-label="Current focus">
+      <div>
+        <p class="eyebrow">Today's lane</p>
+        <h2 id="focus-title">Choose a phase, filter the noise, solve one row.</h2>
+      </div>
+      <div class="focus-actions">
+        <button class="toggle-btn" id="oa-mode-btn" type="button">OA focus</button>
+        <button class="toggle-btn" id="due-filter-btn" type="button">Due only</button>
+      </div>
+    </section>
 
-  <!-- CONTROLS -->
-  <div class="controls">
-    <input type="text" id="search" class="search-input" placeholder="Search a problem name...">
-    <div class="control-buttons">
-      <button class="toggle-btn" id="oa-mode-btn" title="Show only Medium/Hard (3★+) problems">OA Mode</button>
-      <button class="toggle-btn" id="due-filter-btn" title="Show only problems due for revision">Due Only</button>
-      <button class="toggle-btn" id="expand-all-btn">Expand All</button>
-    </div>
-  </div>
+    <section class="command-bar" aria-label="Search and filters">
+      <label class="search-box">
+        <span>Search</span>
+        <input type="search" id="search" placeholder="Problem, topic, phase, platform...">
+      </label>
+      <label>
+        <span>Status</span>
+        <select id="status-filter">
+          <option value="all">All statuses</option>
+          <option value="new">New</option>
+          <option value="solved">Solved+</option>
+          <option value="revising">Revising</option>
+          <option value="mastered">Mastered</option>
+          <option value="due">Due</option>
+        </select>
+      </label>
+      <label>
+        <span>Difficulty</span>
+        <select id="difficulty-filter">
+          <option value="all">All levels</option>
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard">Hard</option>
+        </select>
+      </label>
+      <label>
+        <span>Phase / Pattern</span>
+        <select id="group-filter">
+          <option value="all">All groups</option>
+        </select>
+      </label>
+      <label>
+        <span>Source</span>
+        <select id="source-filter">
+          <option value="all">All sources</option>
+          <option value="leetcode">LeetCode</option>
+          <option value="gfg">GFG</option>
+          <option value="neetcode">NeetCode</option>
+          <option value="search">Search fallback</option>
+        </select>
+      </label>
+      <button class="ghost-btn" id="clear-filters-btn" type="button">Clear</button>
+    </section>
 
-  <!-- LEGEND -->
-  <div class="legend">
-    <span class="legend-item"><span class="dot dot-new"></span> New</span>
-    <span class="legend-item"><span class="dot dot-solved"></span> Solved</span>
-    <span class="legend-item"><span class="dot dot-revising"></span> Revising</span>
-    <span class="legend-item"><span class="dot dot-mastered"></span> Mastered</span>
-    <span class="legend-item legend-hint">click a problem to cycle its state</span>
-  </div>
+    <div class="result-meta" id="result-meta">Ready.</div>
+    <div id="phases" class="tracker-list"></div>
 
-  <div id="phases"></div>
-
-  <footer>
-    <strong>Phase Roadmap:</strong> the master DSA sheet (502 problems, 9 phases) plus a CP-oriented bonus set (Difference Arrays, Multi-Source BFS, 0/1 BFS, Bitmask DP, String Matching, Segment/Fenwick Trees).
-    <strong>Pattern Sheet:</strong> 513 problems across 30 Grokking-style patterns with verified LeetCode links.
-    Progress and streaks are stored locally in your browser, separately for each tab.
-  </footer>
+    <footer>
+      Phase Roadmap keeps your sheet-style progression. Pattern Sheet keeps the Grokking-style pattern list. Click the status dot or problem title to cycle progress; use Open for the practice link.
+    </footer>
+  </main>
 </div>
 
 <script src="data.js"></script>
 <script src="patterns-data.js"></script>
+<script src="phase-links.js"></script>
 <script src="app.js"></script>
+<script>
+  (function () {
+    var root = document.documentElement;
+    var btn = document.getElementById("theme-toggle-btn");
+    var icon = document.getElementById("theme-toggle-icon");
+    var label = document.getElementById("theme-toggle-label");
+
+    function syncButton() {
+      var isDark = root.getAttribute("data-theme") === "dark";
+      icon.innerHTML = isDark ? "&#9788;" : "&#9789;";
+      label.textContent = isDark ? "Light" : "Dark";
+      btn.setAttribute("aria-pressed", String(isDark));
+    }
+
+    btn.addEventListener("click", function () {
+      var next = root.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      root.setAttribute("data-theme", next);
+      localStorage.setItem("dsa-theme", next);
+      syncButton();
+    });
+
+    syncButton();
+  })();
+</script>
 </body>
 </html>
