@@ -3,12 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#f4f0e8" id="theme-color-meta">
 <title>DSA Patterns Tracker - Shourya</title>
 <script>
   (function () {
     var saved = localStorage.getItem("dsa-theme");
     var theme = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     document.documentElement.setAttribute("data-theme", theme);
+    var meta = document.getElementById("theme-color-meta");
+    if (meta) meta.setAttribute("content", theme === "dark" ? "#0d1117" : "#f4f0e8");
   })();
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -154,11 +157,14 @@
     var icon = document.getElementById("theme-toggle-icon");
     var label = document.getElementById("theme-toggle-label");
 
+    var meta = document.getElementById("theme-color-meta");
+
     function syncButton() {
       var isDark = root.getAttribute("data-theme") === "dark";
       icon.innerHTML = isDark ? "&#9788;" : "&#9789;";
       label.textContent = isDark ? "Light" : "Dark";
       btn.setAttribute("aria-pressed", String(isDark));
+      if (meta) meta.setAttribute("content", isDark ? "#0d1117" : "#f4f0e8");
     }
 
     btn.addEventListener("click", function () {
