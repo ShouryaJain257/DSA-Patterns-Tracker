@@ -1,6 +1,8 @@
 // ---------- Storage ----------
 const PROGRESS_KEY = "dsa-progress-v3";
-const ACTIVITY_KEY = "dsa-activity-v3";
+const ACTIVITY_KEY = "dsa-activity-v4";
+const LEGACY_ACTIVITY_KEY = "dsa-activity-v3";
+const NOTES_KEY = "dsa-notes-v1";
 
 function loadJSON(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) || fallback; }
@@ -13,7 +15,76 @@ function saveJSON(key, val) {
 }
 
 let progress = loadJSON(PROGRESS_KEY, {});
-let activity = loadJSON(ACTIVITY_KEY, []);
+let notes = loadJSON(NOTES_KEY, {});
+
+// activityCounts: { "YYYY-MM-DD": numberOfActionsThatDay }
+let activityCounts = loadJSON(ACTIVITY_KEY, null);
+if (!activityCounts) {
+  const legacy = loadJSON(LEGACY_ACTIVITY_KEY, []);
+  activityCounts = {};
+  if (Array.isArray(legacy)) legacy.forEach(d => { activityCounts[d] = 1; });
+  saveJSON(ACTIVITY_KEY, activityCounts);
+}
+
+function activityDates() {
+  return Object.keys(activityCounts).sort();
+}
+
+// ---------- IndexedDB (note file storage) ----------
+const NOTES_DB_NAME = "dsa-notes-db";
+const NOTES_STORE = "files";
+let notesDBPromise = null;
+
+function openNotesDB() {
+  if (notesDBPromise) return notesDBPromise;
+  notesDBPromise = new Promise((resolve, reject) => {
+    if (!window.indexedDB) { reject(new Error("IndexedDB unavailable")); return; }
+    const req = indexedDB.open(NOTES_DB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(NOTES_STORE)) {
+        req.result.createObjectStore(NOTES_STORE);
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+  return notesDBPromise;
+}
+
+async function saveNoteFile(key, file) {
+  const db = await openNotesDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(NOTES_STORE, "readwrite");
+    tx.objectStore(NOTES_STORE).put(file, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+async function getNoteFile(key) {
+  const db = await openNotesDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(NOTES_STORE, "readonly");
+    const req = tx.objectStore(NOTES_STORE).get(key);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function deleteNoteFile(key) {
+  const db = await openNotesDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(NOTES_STORE, "readwrite");
+    tx.objectStore(NOTES_STORE).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+function hasNote(key) {
+  const n = notes[key];
+  return Boolean(n && (n.link || n.fileName));
+}
 
 // ---------- Date helpers ----------
 function todayStr() {
@@ -29,16 +100,14 @@ function daysBetween(dateStr1, dateStr2) {
 
 function recordActivity() {
   const t = todayStr();
-  if (!activity.includes(t)) {
-    activity.push(t);
-    activity.sort();
-    saveJSON(ACTIVITY_KEY, activity);
-  }
+  activityCounts[t] = (activityCounts[t] || 0) + 1;
+  saveJSON(ACTIVITY_KEY, activityCounts);
 }
 
 function computeStreaks() {
-  if (activity.length === 0) return { current: 0, longest: 0 };
-  const set = new Set(activity);
+  const dates = activityDates();
+  if (dates.length === 0) return { current: 0, longest: 0 };
+  const set = new Set(dates);
   const today = todayStr();
   const yest = new Date(Date.now() - 86400000);
   const yestStr = yest.getFullYear() + "-" + String(yest.getMonth() + 1).padStart(2, "0") + "-" + String(yest.getDate()).padStart(2, "0");
@@ -54,8 +123,8 @@ function computeStreaks() {
 
   let longest = 1;
   let run = 1;
-  for (let i = 1; i < activity.length; i++) {
-    if (daysBetween(activity[i - 1], activity[i]) === 1) run++;
+  for (let i = 1; i < dates.length; i++) {
+    if (daysBetween(dates[i - 1], dates[i]) === 1) run++;
     else run = 1;
     longest = Math.max(longest, run);
   }
@@ -295,6 +364,82 @@ function renderStats() {
   document.getElementById("overall-ring").style.setProperty("--pct", `${pct}%`);
   document.getElementById("due-card").classList.toggle("is-hot", dueCount > 0);
   document.getElementById("result-meta").textContent = `${visible.length} of ${ALL_PROBLEMS.length} problems match your current filters.`;
+  renderHeatmap();
+}
+
+// ---------- Heatmap ----------
+const HEAT_WEEKS = 53;
+const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+function heatLevel(count) {
+  if (!count) return 0;
+  if (count <= 1) return 1;
+  if (count <= 3) return 2;
+  if (count <= 6) return 3;
+  return 4;
+}
+
+function formatHeatDate(dateStr) {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+}
+
+function renderHeatmap() {
+  const grid = document.getElementById("heatmap-grid");
+  const monthsRow = document.getElementById("heatmap-months");
+  const totalEl = document.getElementById("heatmap-total");
+  if (!grid || !monthsRow) return;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const endDow = today.getDay();
+  const totalDays = HEAT_WEEKS * 7;
+  const start = new Date(today);
+  start.setDate(start.getDate() - (totalDays - 1 - (6 - endDow)));
+
+  grid.innerHTML = "";
+  monthsRow.innerHTML = "";
+  grid.style.gridTemplateColumns = `repeat(${HEAT_WEEKS}, 1fr)`;
+  monthsRow.style.gridTemplateColumns = `repeat(${HEAT_WEEKS}, 1fr)`;
+
+  let yearTotal = 0;
+  let lastMonth = -1;
+
+  for (let week = 0; week < HEAT_WEEKS; week++) {
+    const monthLabel = document.createElement("span");
+    monthLabel.className = "heatmap-month";
+    const col = document.createElement("div");
+    col.className = "heatmap-col";
+
+    for (let dow = 0; dow < 7; dow++) {
+      const cellDate = new Date(start);
+      cellDate.setDate(start.getDate() + week * 7 + dow);
+      if (cellDate > today) {
+        const spacer = document.createElement("span");
+        spacer.className = "heatmap-cell heat-empty";
+        col.appendChild(spacer);
+        continue;
+      }
+      const dateStr = cellDate.getFullYear() + "-" + String(cellDate.getMonth() + 1).padStart(2, "0") + "-" + String(cellDate.getDate()).padStart(2, "0");
+      const count = activityCounts[dateStr] || 0;
+      yearTotal += count;
+
+      if (dow === 0 && cellDate.getMonth() !== lastMonth) {
+        monthLabel.textContent = MONTH_NAMES[cellDate.getMonth()];
+        lastMonth = cellDate.getMonth();
+      }
+
+      const cell = document.createElement("span");
+      cell.className = `heatmap-cell heat-${heatLevel(count)}`;
+      cell.title = `${count} action${count === 1 ? "" : "s"} on ${formatHeatDate(dateStr)}`;
+      col.appendChild(cell);
+    }
+
+    monthsRow.appendChild(monthLabel);
+    grid.appendChild(col);
+  }
+
+  if (totalEl) totalEl.textContent = `${yearTotal} action${yearTotal === 1 ? "" : "s"} in the last year`;
 }
 
 function populateGroupFilter() {
@@ -371,7 +516,15 @@ function buildProblemRow(p) {
   link.title = p.exact ? "Open problem" : "Open search fallback";
   link.textContent = "Open";
 
-  row.append(statusBtn, main, badges, link);
+  const notesBtn = document.createElement("button");
+  notesBtn.className = "notes-btn" + (hasNote(p.key) ? " has-note" : "");
+  notesBtn.type = "button";
+  notesBtn.title = hasNote(p.key) ? "View/edit your notes" : "Add notes";
+  notesBtn.setAttribute("aria-label", hasNote(p.key) ? "View or edit notes for this problem" : "Add notes for this problem");
+  notesBtn.textContent = "\u{1F4DD}";
+  notesBtn.addEventListener("click", () => openNotesModal(p.key, p.name));
+
+  row.append(statusBtn, main, badges, notesBtn, link);
   return row;
 }
 
@@ -704,6 +857,164 @@ document.getElementById("expand-all-btn").addEventListener("click", e => {
   }
   renderPhases();
 });
+
+// ---------- Notes modal ----------
+const MAX_NOTE_FILE_BYTES = 15 * 1024 * 1024; // 15MB safety cap per file
+
+let notesModalEls = null;
+let currentNotesKey = null;
+
+function initNotesModal() {
+  const overlay = document.createElement("div");
+  overlay.className = "modal-overlay";
+  overlay.id = "notes-modal-overlay";
+
+  const card = document.createElement("div");
+  card.className = "modal-card";
+  card.setAttribute("role", "dialog");
+  card.setAttribute("aria-modal", "true");
+  card.setAttribute("aria-labelledby", "notes-modal-title");
+
+  card.innerHTML = `
+    <div class="modal-head">
+      <p class="modal-title" id="notes-modal-title">Notes</p>
+      <button type="button" class="modal-close" id="notes-modal-close" aria-label="Close notes">&times;</button>
+    </div>
+    <label class="modal-field">
+      <span>Link (GitHub repo, gist, Drive doc, etc.)</span>
+      <input type="url" id="notes-link-input" placeholder="https://github.com/you/your-solution">
+    </label>
+    <div class="modal-field">
+      <span>File (stored in this browser only)</span>
+      <div class="notes-file-row" id="notes-file-row">
+        <span id="notes-file-status">No file attached</span>
+      </div>
+      <input type="file" id="notes-file-input" accept=".pdf,.md,.txt,.png,.jpg,.jpeg">
+      <button type="button" class="ghost-btn" id="notes-file-remove" hidden>Remove file</button>
+    </div>
+    <p class="modal-hint">Files are stored locally in this browser (IndexedDB) and are not synced or backed up &mdash; they will not survive clearing site data or switching devices.</p>
+    <div class="modal-actions">
+      <button type="button" class="toggle-btn" id="notes-save-btn">Save link</button>
+    </div>
+  `;
+
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeNotesModal(); });
+  document.getElementById("notes-modal-close").addEventListener("click", closeNotesModal);
+  document.getElementById("notes-save-btn").addEventListener("click", saveNotesLink);
+  document.getElementById("notes-file-input").addEventListener("change", handleNotesFileChange);
+  document.getElementById("notes-file-remove").addEventListener("click", removeNotesFile);
+  document.addEventListener("keydown", e => {
+    if (e.key === "Escape" && overlay.classList.contains("open")) closeNotesModal();
+  });
+
+  notesModalEls = {
+    overlay,
+    title: document.getElementById("notes-modal-title"),
+    linkInput: document.getElementById("notes-link-input"),
+    fileStatus: document.getElementById("notes-file-status"),
+    fileInput: document.getElementById("notes-file-input"),
+    fileRemoveBtn: document.getElementById("notes-file-remove")
+  };
+}
+
+function openNotesModal(key, name) {
+  if (!notesModalEls) initNotesModal();
+  currentNotesKey = key;
+  const entry = notes[key] || {};
+  notesModalEls.title.textContent = `Notes \u2014 ${name}`;
+  notesModalEls.linkInput.value = entry.link || "";
+  notesModalEls.fileInput.value = "";
+  renderNotesFileStatus(entry);
+  notesModalEls.overlay.classList.add("open");
+  notesModalEls.linkInput.focus();
+}
+
+function closeNotesModal() {
+  if (notesModalEls) notesModalEls.overlay.classList.remove("open");
+  currentNotesKey = null;
+  renderPhases();
+}
+
+function renderNotesFileStatus(entry) {
+  notesModalEls.fileStatus.innerHTML = "";
+  if (entry && entry.fileName) {
+    const sizeKb = Math.max(1, Math.round((entry.fileSize || 0) / 1024));
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = `${entry.fileName} (${sizeKb} KB)`;
+    const viewBtn = document.createElement("button");
+    viewBtn.type = "button";
+    viewBtn.className = "ghost-btn";
+    viewBtn.textContent = "View";
+    viewBtn.addEventListener("click", viewNotesFile);
+    notesModalEls.fileStatus.append(nameSpan, viewBtn);
+    notesModalEls.fileRemoveBtn.hidden = false;
+  } else {
+    notesModalEls.fileStatus.textContent = "No file attached";
+    notesModalEls.fileRemoveBtn.hidden = true;
+  }
+}
+
+async function viewNotesFile() {
+  if (!currentNotesKey) return;
+  const file = await getNoteFile(currentNotesKey).catch(() => null);
+  if (!file) { alert("Couldn't load the stored file."); return; }
+  const url = URL.createObjectURL(file);
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+function saveNotesLink() {
+  if (!currentNotesKey) return;
+  const link = notesModalEls.linkInput.value.trim();
+  const entry = notes[currentNotesKey] || {};
+  if (link) entry.link = link;
+  else delete entry.link;
+  if (entry.link || entry.fileName) notes[currentNotesKey] = entry;
+  else delete notes[currentNotesKey];
+  saveJSON(NOTES_KEY, notes);
+  closeNotesModal();
+}
+
+async function handleNotesFileChange(e) {
+  const file = e.target.files[0];
+  if (!file || !currentNotesKey) return;
+  if (file.size > MAX_NOTE_FILE_BYTES) {
+    alert(`That file is too large (${Math.round(file.size / 1024 / 1024)}MB). Keep attachments under ${Math.round(MAX_NOTE_FILE_BYTES / 1024 / 1024)}MB.`);
+    e.target.value = "";
+    return;
+  }
+  try {
+    await saveNoteFile(currentNotesKey, file);
+    const entry = notes[currentNotesKey] || {};
+    entry.fileName = file.name;
+    entry.fileType = file.type;
+    entry.fileSize = file.size;
+    entry.savedAt = todayStr();
+    notes[currentNotesKey] = entry;
+    saveJSON(NOTES_KEY, notes);
+    renderNotesFileStatus(entry);
+  } catch (err) {
+    alert("Couldn't save that file in this browser's storage. It may be full, or IndexedDB may be unavailable (e.g. private browsing).");
+  }
+}
+
+async function removeNotesFile() {
+  if (!currentNotesKey) return;
+  await deleteNoteFile(currentNotesKey).catch(() => {});
+  const entry = notes[currentNotesKey];
+  if (entry) {
+    delete entry.fileName;
+    delete entry.fileType;
+    delete entry.fileSize;
+    delete entry.savedAt;
+    if (!entry.link) delete notes[currentNotesKey];
+    saveJSON(NOTES_KEY, notes);
+  }
+  renderNotesFileStatus(notes[currentNotesKey] || {});
+}
 
 // ---------- Init ----------
 renderAll();
