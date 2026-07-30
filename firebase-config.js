@@ -5,10 +5,10 @@
 // access to your data is controlled by Firestore security rules and the
 // "Authorized domains" list in Authentication settings, not by hiding this key.
 window.FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBjAAB24OoNzR7xmDBWjY5G8WuxmnNShzA",
+  authDomain: "dsa-patterns-tracker.firebaseapp.com",
+  projectId: "dsa-patterns-tracker",
+  storageBucket: "dsa-patterns-tracker.firebasestorage.app",
+  messagingSenderId: "591135841046",
+  appId: "1:591135841046:web:b415fb8adf4de004248e37"
 };
