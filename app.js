@@ -86,6 +86,12 @@ function hasNote(key) {
   return Boolean(n && (n.link || n.fileName));
 }
 
+// Lightweight hook other scripts (e.g. sync.js) can attach to without app.js
+// needing to know they exist.
+function notifySyncChange() {
+  if (typeof window.onLocalDataChange === "function") window.onLocalDataChange();
+}
+
 // ---------- Date helpers ----------
 function todayStr() {
   const d = new Date();
@@ -302,6 +308,7 @@ function cycleProblem(key) {
   progress[key] = entry;
   saveJSON(PROGRESS_KEY, progress);
   recordActivity();
+  notifySyncChange();
   renderAll(false);
 }
 
@@ -975,6 +982,7 @@ function saveNotesLink() {
   if (entry.link || entry.fileName) notes[currentNotesKey] = entry;
   else delete notes[currentNotesKey];
   saveJSON(NOTES_KEY, notes);
+  notifySyncChange();
   closeNotesModal();
 }
 
@@ -995,6 +1003,7 @@ async function handleNotesFileChange(e) {
     entry.savedAt = todayStr();
     notes[currentNotesKey] = entry;
     saveJSON(NOTES_KEY, notes);
+    notifySyncChange();
     renderNotesFileStatus(entry);
   } catch (err) {
     alert("Couldn't save that file in this browser's storage. It may be full, or IndexedDB may be unavailable (e.g. private browsing).");
@@ -1012,6 +1021,7 @@ async function removeNotesFile() {
     delete entry.savedAt;
     if (!entry.link) delete notes[currentNotesKey];
     saveJSON(NOTES_KEY, notes);
+    notifySyncChange();
   }
   renderNotesFileStatus(notes[currentNotesKey] || {});
 }
