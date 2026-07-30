@@ -267,6 +267,8 @@ h2{margin-bottom:0;font-size:clamp(28px,4vw,56px);line-height:1;letter-spacing:0
 #theme-toggle-btn{display:inline-flex;align-items:center;gap:6px}
 #theme-toggle-icon{font-size:14px;line-height:1}
 
+#sync-btn.active{border-color:var(--accent);color:var(--accent)}
+
 .toggle-btn.active{
   color:var(--paper);
   background:var(--ink);
