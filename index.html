@@ -76,6 +76,9 @@
         <button class="tab-btn" id="tab-pattern" data-tab="pattern" type="button">Pattern Sheet <span class="tab-count">0</span></button>
       </div>
       <button class="ghost-btn" id="expand-all-btn" type="button">Expand all</button>
+      <button class="ghost-btn" id="sync-btn" type="button" title="Sign in with Google to sync progress across devices">
+        <span id="sync-label">Sign in to sync</span>
+      </button>
       <button class="ghost-btn" id="theme-toggle-btn" type="button" aria-label="Toggle dark mode" aria-pressed="false">
         <span id="theme-toggle-icon" aria-hidden="true">&#9789;</span>
         <span id="theme-toggle-label">Dark</span>
@@ -163,10 +166,15 @@
   </main>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
 <script src="data.js"></script>
 <script src="patterns-data.js"></script>
 <script src="phase-links.js"></script>
 <script src="app.js"></script>
+<script src="sync.js"></script>
 <script>
   (function () {
     var root = document.documentElement;
